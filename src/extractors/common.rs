@@ -27,12 +27,50 @@ pub struct ExtractionError;
 pub type InternalExtractor = fn(&[u8], usize, Option<&str>) -> ExtractionResult;
 
 /// Enum to define either an Internal or External extractor type
-#[derive(Debug, Default, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Default, Clone)]
 pub enum ExtractorType {
     External(String),
     Internal(InternalExtractor),
     #[default]
     None,
+}
+
+// Preserve the public comparison API. Internal callbacks have only process-local
+// address ordering; this is never a durable identity or authorization boundary.
+impl PartialEq for ExtractorType {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::External(left), Self::External(right)) => left == right,
+            (Self::Internal(left), Self::Internal(right)) => std::ptr::fn_addr_eq(*left, *right),
+            (Self::None, Self::None) => true,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for ExtractorType {}
+
+impl Ord for ExtractorType {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let rank = |value: &Self| match value {
+            Self::External(_) => 0,
+            Self::Internal(_) => 1,
+            Self::None => 2,
+        };
+        match (self, other) {
+            (Self::External(left), Self::External(right)) => left.cmp(right),
+            (Self::Internal(left), Self::Internal(right)) => {
+                (*left as usize).cmp(&(*right as usize))
+            }
+            _ => rank(self).cmp(&rank(other)),
+        }
+    }
+}
+
+impl PartialOrd for ExtractorType {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 /// Describes extractors, both external and internal
@@ -1009,12 +1047,12 @@ pub fn execute(
         }
 
         // Clean up extractor's output directory if extraction failed
-        if !result.success {
-            if let Err(e) = fs::remove_dir_all(&output_directory) {
-                warn!(
-                    "Failed to clean up extraction directory {output_directory} after extraction failure: {e}"
-                );
-            }
+        if !result.success
+            && let Err(e) = fs::remove_dir_all(&output_directory)
+        {
+            warn!(
+                "Failed to clean up extraction directory {output_directory} after extraction failure: {e}"
+            );
         }
     }
 

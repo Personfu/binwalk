@@ -86,7 +86,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
         with:
           toolchain: 1.99.1
-      - run: sudo apt-get update && sudo apt-get install -y pkg-config liblzma-dev
+      - run: sudo apt-get update && sudo apt-get install -y pkg-config liblzma-dev 7zip unyaffs sleuthkit util-linux
+      - name: Install the pinned SquashFS fixture extractor
+        run: |
+          curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 --output /tmp/sasquatch.deb https://github.com/onekey-sec/sasquatch/releases/download/sasquatch-v4.5.1-5/sasquatch_1.0_amd64.deb
+          echo '23191cb530bed01e9f00b9a28a74d03db057fb111e13ce5fb383356c1fdf7e6c  /tmp/sasquatch.deb' | sha256sum --check
+          sudo apt-get install -y /tmp/sasquatch.deb
       - name: Verify main and fuzzing locks select the patched ZIP implementation
         run: |
           python3 - <<'PY'
@@ -96,5 +101,5 @@ jobs:
               selected=[p['version'] for p in data['package'] if p['name']=='zip']
               assert selected == ['9.3.0'], (name,selected)
           PY
-      - run: cargo test --locked --workspace
+      - run: cargo test --locked --workspace --lib --tests
       - run: cargo check --locked --manifest-path fuzzing/Cargo.toml

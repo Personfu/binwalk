@@ -45,3 +45,6 @@ See [patch provenance and limits](vendor/plotly_kaleido/SECURITY-PATCH.md).
 This does not attest to installed Binwalk/7z binaries or upgrade the legacy
 Kaleido browser runtime. Rebuilds, runtime migration and release rollout remain
 separate checks. Regression archives contain inert temporary text only.
+
+
+The security CI job runs all workspace library and integration tests with the fixture extraction tools installed, including the five archive-boundary regressions and rendering tests. The command is `cargo test --locked --workspace --lib --tests`; examples that invoke other optional external extraction programs are outside that job. Clippy still checks all workspace targets with warnings denied. The full application container, released binaries, and legacy Kaleido runtime require separate rollout verification.

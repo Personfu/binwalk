@@ -34,15 +34,15 @@ pub fn parse_romfs_header(romfs_data: &[u8]) -> Result<RomFSHeader, StructureErr
                 }
 
                 // Validate the header CRC
-                if let Some(crc_data) = romfs_data.get(0..crc_data_len) {
-                    if romfs_crc_valid(crc_data) {
-                        return Ok(RomFSHeader {
-                            image_size: header["image_size"],
-                            volume_name: volume_name.clone(),
-                            // Volume name has a NULL terminator and is padded to a 16 byte boundary alignment
-                            header_size: header_size + romfs_align(volume_name.len() + 1),
-                        });
-                    }
+                if let Some(crc_data) = romfs_data.get(0..crc_data_len)
+                    && romfs_crc_valid(crc_data)
+                {
+                    return Ok(RomFSHeader {
+                        image_size: header["image_size"],
+                        volume_name: volume_name.clone(),
+                        // Volume name has a NULL terminator and is padded to a 16 byte boundary alignment
+                        header_size: header_size + romfs_align(volume_name.len() + 1),
+                    });
                 }
             }
         }
@@ -166,7 +166,7 @@ fn romfs_crc_valid(crc_data: &[u8]) -> bool {
     let word_size: usize = std::mem::size_of::<u32>();
 
     // Checksum size must be 4-byte aligned
-    if (crc_data.len() % word_size) == 0 {
+    if crc_data.len().is_multiple_of(word_size) {
         let mut i: usize = 0;
         let mut sum: u32 = 0;
 

@@ -200,10 +200,7 @@ fn process_romfs_entries(
 
                 // Directories have children; process them
                 if file_entry.directory {
-                    match process_romfs_entries(romfs_data, file_entry.info) {
-                        Err(e) => return Err(e),
-                        Ok(children) => file_entry.children = children,
-                    }
+                    file_entry.children = process_romfs_entries(romfs_data, file_entry.info)?;
                 }
 
                 // Only add supported file types to the list of file entries
@@ -236,35 +233,29 @@ fn extract_romfs_entries(
     let chroot = Chroot::new(Some(chroot_directory));
 
     for file_entry in romfs_files {
-        let extraction_success: bool;
         let file_path = chroot.safe_path_join(parent_directory, &file_entry.name);
 
-        if file_entry.directory {
-            extraction_success = chroot.create_directory(&file_path);
+        let extraction_success = if file_entry.directory {
+            chroot.create_directory(&file_path)
         } else if file_entry.regular {
-            extraction_success =
-                chroot.carve_file(&file_path, romfs_data, file_entry.offset, file_entry.size);
+            chroot.carve_file(&file_path, romfs_data, file_entry.offset, file_entry.size)
         } else if file_entry.symlink {
-            extraction_success = chroot.create_symlink(&file_path, &file_entry.symlink_target);
+            chroot.create_symlink(&file_path, &file_entry.symlink_target)
         } else if file_entry.fifo {
-            extraction_success = chroot.create_fifo(&file_path);
+            chroot.create_fifo(&file_path)
         } else if file_entry.socket {
-            extraction_success = chroot.create_socket(&file_path);
+            chroot.create_socket(&file_path)
         } else if file_entry.block_device {
-            extraction_success = chroot.create_block_device(
-                &file_path,
-                file_entry.device_major,
-                file_entry.device_minor,
-            );
+            chroot.create_block_device(&file_path, file_entry.device_major, file_entry.device_minor)
         } else if file_entry.character_device {
-            extraction_success = chroot.create_character_device(
+            chroot.create_character_device(
                 &file_path,
                 file_entry.device_major,
                 file_entry.device_minor,
-            );
+            )
         } else {
             continue;
-        }
+        };
 
         if extraction_success {
             file_count += 1;
