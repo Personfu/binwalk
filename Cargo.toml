@@ -46,3 +46,11 @@ features = [
 
 [profile.release]
 lto = true
+
+[patch.crates-io]
+plotly_kaleido = { path = "vendor/plotly_kaleido" }
+
+[workspace]
+members = ["vendor/plotly_kaleido"]
+exclude = ["fuzzing"]
+resolver = "3"

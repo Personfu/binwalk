@@ -39,6 +39,11 @@ pub fn assert_results_ok(
 
 /// Run Binwalk, with extraction, against the specified file, with the provided signature filter
 pub fn run_binwalk(signature_filter: &str, file_name: &str) -> AnalysisResults {
+    let _ = env_logger::builder()
+        .is_test(true)
+        .filter_level(log::LevelFilter::Debug)
+        .try_init();
+
     // Build the path to the input file
     let file_path = std::path::Path::new("tests")
         .join("inputs")

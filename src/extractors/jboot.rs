@@ -52,21 +52,21 @@ pub fn extract_jboot_sch2_kernel(
             let kernel_end: usize = kernel_start + sch2_header.kernel_size;
 
             // Validate the kernel data checksum
-            if let Some(kernel_data) = file_data.get(kernel_start..kernel_end) {
-                if crc32(kernel_data) == (sch2_header.kernel_checksum as u32) {
-                    // Everything checks out ok
-                    result.size = Some(sch2_header.header_size + sch2_header.kernel_size);
-                    result.success = true;
+            if let Some(kernel_data) = file_data.get(kernel_start..kernel_end)
+                && crc32(kernel_data) == (sch2_header.kernel_checksum as u32)
+            {
+                // Everything checks out ok
+                result.size = Some(sch2_header.header_size + sch2_header.kernel_size);
+                result.success = true;
 
-                    if output_directory.is_some() {
-                        let chroot = Chroot::new(output_directory);
-                        result.success = chroot.carve_file(
-                            OUTFILE_NAME,
-                            file_data,
-                            kernel_start,
-                            sch2_header.kernel_size,
-                        );
-                    }
+                if output_directory.is_some() {
+                    let chroot = Chroot::new(output_directory);
+                    result.success = chroot.carve_file(
+                        OUTFILE_NAME,
+                        file_data,
+                        kernel_start,
+                        sch2_header.kernel_size,
+                    );
                 }
             }
         }

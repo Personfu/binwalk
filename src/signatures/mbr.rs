@@ -31,32 +31,32 @@ pub fn mbr_parser(file_data: &[u8], offset: usize) -> Result<SignatureResult, Si
         let dry_run = extract_mbr_partitions(file_data, result.offset, None);
 
         // If dry run was a success, this is likely a valid MBR
-        if dry_run.success {
-            if let Some(mbr_total_size) = dry_run.size {
-                // Update reported MBR size
-                result.size = mbr_total_size;
+        if dry_run.success
+            && let Some(mbr_total_size) = dry_run.size
+        {
+            // Update reported MBR size
+            result.size = mbr_total_size;
 
-                // Parse the MBR header
-                if let Ok(mbr_header) = parse_mbr_image(&file_data[result.offset..]) {
-                    // Examine all reported partitions
-                    for partition in &mbr_header.partitions {
-                        // Carving out partitions starting at offset 0 would result in infinite recurstion during recursive extraction!
-                        if partition.start == result.offset {
-                            result.extraction_declined = true;
-                        }
-
-                        // Add partition info to the description
-                        result.description =
-                            format!("{}, partition: {}", result.description, partition.name);
+            // Parse the MBR header
+            if let Ok(mbr_header) = parse_mbr_image(&file_data[result.offset..]) {
+                // Examine all reported partitions
+                for partition in &mbr_header.partitions {
+                    // Carving out partitions starting at offset 0 would result in infinite recurstion during recursive extraction!
+                    if partition.start == result.offset {
+                        result.extraction_declined = true;
                     }
 
-                    // Add total size to the description
+                    // Add partition info to the description
                     result.description =
-                        format!("{}, image size: {} bytes", result.description, result.size);
-
-                    // Everything looks ok
-                    return Ok(result);
+                        format!("{}, partition: {}", result.description, partition.name);
                 }
+
+                // Add total size to the description
+                result.description =
+                    format!("{}, image size: {} bytes", result.description, result.size);
+
+                // Everything looks ok
+                return Ok(result);
             }
         }
     }

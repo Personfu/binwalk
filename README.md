@@ -32,3 +32,19 @@ binwalk DIR-890L_AxFW110b07.bin
 ![example output](images/output.png)
 
 Use `--help`, or check out the [Wiki](https://github.com/ReFirmLabs/binwalk/wiki#usage) for more advanced options!
+
+## Plotting installer security
+
+The checked-in Plotly/Kaleido compatibility patch uses ZIP 9.3.0 for its build
+installer, covering CVE-2026-115905, CVE-2026-115906 and CVE-2026-115909. Both
+Cargo locks use the same patched parent. Its bounded extraction rejects header
+name disagreement, unsafe paths, symlinks and existing-file overwrite; the
+build no longer installs an unpinned downloader.
+
+See [patch provenance and limits](vendor/plotly_kaleido/SECURITY-PATCH.md).
+This does not attest to installed Binwalk/7z binaries or upgrade the legacy
+Kaleido browser runtime. Rebuilds, runtime migration and release rollout remain
+separate checks. Regression archives contain inert temporary text only.
+
+
+The security CI job runs all workspace library and integration tests with the fixture extraction tools installed, including the five archive-boundary regressions and rendering tests. The command is `cargo test --locked --workspace --lib --tests`; examples that invoke other optional external extraction programs are outside that job. Clippy still checks all workspace targets with warnings denied. The full application container, released binaries, and legacy Kaleido runtime require separate rollout verification.
