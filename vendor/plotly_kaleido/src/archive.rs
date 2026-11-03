@@ -1,8 +1,27 @@
 use std::fs;
-use std::io::{self, Read};
+use std::io::{self, Read, Seek, SeekFrom};
 use std::path::{Component, Path};
 
 const MAX_UNCOMPRESSED: u64 = 1024 * 1024 * 1024;
+
+fn verify_local_name(reader: &mut fs::File, offset: u64, central_name: &[u8]) -> io::Result<()> {
+    reader.seek(SeekFrom::Start(offset))?;
+    let mut header = [0_u8; 30];
+    reader.read_exact(&mut header)?;
+    if &header[..4] != b"PK\x03\x04" {
+        return Err(io::Error::other("Invalid local archive header"));
+    }
+    let length = usize::from(u16::from_le_bytes([header[26], header[27]]));
+    if length != central_name.len() {
+        return Err(io::Error::other("Inconsistent archive filename"));
+    }
+    let mut local_name = vec![0_u8; length];
+    reader.read_exact(&mut local_name)?;
+    if local_name != central_name {
+        return Err(io::Error::other("Inconsistent archive filename"));
+    }
+    Ok(())
+}
 
 fn safe_directory(root: &Path, relative: &Path) -> io::Result<()> {
     let mut current = root.to_path_buf();
@@ -26,7 +45,17 @@ pub fn extract_zip(destination: &Path, archive_path: &Path) -> io::Result<()> {
     if fs::symlink_metadata(destination)?.file_type().is_symlink() {
         return Err(io::Error::other("Archive destination is a symlink"));
     }
-    let mut archive = zip::ZipArchive::new(fs::File::open(archive_path)?)?;
+    let source = fs::File::open(archive_path)?;
+    let mut header_reader = source.try_clone()?;
+    let mut archive = zip::ZipArchive::new(source)?;
+    // The random-access API treats central-directory names as authoritative.
+    // Explicitly reject dual-header disagreement before creating any payload.
+    // by_index_data reads only metadata; subsequent by_index seeks to the entry
+    // data again, so the cloned handle's shared cursor cannot affect extraction.
+    for index in 0..archive.len() {
+        let entry = archive.by_index_data(index)?;
+        verify_local_name(&mut header_reader, entry.header_start(), entry.name_raw())?;
+    }
     let mut total = 0_u64;
     for index in 0..archive.len() {
         let mut entry = archive.by_index(index)?;
