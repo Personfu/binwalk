@@ -101,5 +101,11 @@ jobs:
               selected=[p['version'] for p in data['package'] if p['name']=='zip']
               assert selected == ['9.3.0'], (name,selected)
           PY
+      - name: Verify archive extractor availability
+        run: |
+          command -v 7zz
+          7zz i
+          command -v unyaffs
+          command -v sasquatch
       - run: cargo test --locked --workspace --lib --tests
       - run: cargo check --locked --manifest-path fuzzing/Cargo.toml
