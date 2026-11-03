@@ -4,13 +4,18 @@ on:
     branches:
       - "*"
 
+permissions:
+  contents: read
+
 jobs:
   lychee-link-check:
     name: Link check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Code checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Link Checker
         uses: lycheeverse/lychee-action@v1.8.0
@@ -19,7 +24,7 @@ jobs:
 
   fmt:
     name: Formatting (rustfmt)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -28,11 +33,14 @@ jobs:
 
     steps:
       - name: Code checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Install Rust toolchain (stable)
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
         with:
+          toolchain: 1.99.1
           target: ${{ matrix.platform.target }}
           components: rustfmt
 
@@ -41,7 +49,7 @@ jobs:
 
   lint:
     name: Lint (clippy)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -50,11 +58,14 @@ jobs:
 
     steps:
       - name: Code checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Install Rust toolchain (stable)
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
         with:
+          toolchain: 1.99.1
           target: ${{ matrix.platform.target }}
           components: clippy
 
@@ -63,3 +74,27 @@ jobs:
 
       - name: Check build did not modify any files
         run: test -z "$(git status --porcelain)"
+
+  security-and-rendering:
+    name: Archive boundaries and application tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+        with:
+          toolchain: 1.99.1
+      - run: sudo apt-get update && sudo apt-get install -y pkg-config liblzma-dev
+      - name: Verify main and fuzzing locks select the patched ZIP implementation
+        run: |
+          python3 - <<'PY'
+          import pathlib,tomllib
+          for name in ('Cargo.lock','fuzzing/Cargo.lock'):
+              data=tomllib.loads(pathlib.Path(name).read_text())
+              selected=[p['version'] for p in data['package'] if p['name']=='zip']
+              assert selected == ['9.3.0'], (name,selected)
+          PY
+      - run: cargo test --locked --workspace
+      - run: cargo check --locked --manifest-path fuzzing/Cargo.toml

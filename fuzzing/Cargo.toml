@@ -6,3 +6,6 @@ edition = "2024"
 [dependencies]
 afl = "*"
 binwalk = { path = "../" }
+
+[patch.crates-io]
+plotly_kaleido = { path = "../vendor/plotly_kaleido" }

@@ -24,6 +24,10 @@ pub struct FileEntropy {
 fn blocks(data: &[u8]) -> Vec<BlockEntropy> {
     const BLOCK_COUNT: usize = 2048;
 
+    if data.is_empty() {
+        return Vec::new();
+    }
+
     let mut offset: usize = 0;
 
     let block_size = if data.len() < BLOCK_COUNT {
@@ -104,4 +108,24 @@ pub fn plot(
     }
 
     Err(EntropyError)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::blocks;
+
+    #[test]
+    fn empty_input_has_no_entropy_blocks() {
+        assert!(blocks(&[]).is_empty());
+    }
+
+    #[test]
+    fn entropy_blocks_cover_the_complete_input() {
+        let input = vec![0_u8; 4097];
+        let result = blocks(&input);
+        assert_eq!(result.first().unwrap().start, 0);
+        assert_eq!(result.last().unwrap().end, input.len());
+        assert!(result.iter().all(|block| block.end > block.start));
+        assert!(result.iter().all(|block| block.entropy == 0.0));
+    }
 }
